@@ -3,29 +3,23 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting seed...');
+  console.log('🌱 Seeding database...');
 
-  // Check if admin already exists
-  const existingAdmin = await prisma.admin.findUnique({
+  // Create admin user
+  const admin = await prisma.admin.upsert({
     where: { username: 'admin' },
-  });
-
-  if (existingAdmin) {
-    console.log('✅ Admin already exists:', existingAdmin.username);
-    return;
-  }
-
-  // Create initial admin
-  const admin = await prisma.admin.create({
-    data: {
+    update: {
+      password: 'admin123',
+      name: 'Admin',
+    },
+    create: {
       username: 'admin',
-      password: 'admin123', // In production, use bcrypt to hash this
-      name: 'أحمد الكوتش',
+      password: 'admin123',
+      name: 'Admin',
     },
   });
 
-  console.log('✅ Admin created successfully!');
-  console.log('   Username:', admin.username);
+  console.log('✅ Admin created/updated:', admin.username);
   console.log('   Password: admin123');
 }
 

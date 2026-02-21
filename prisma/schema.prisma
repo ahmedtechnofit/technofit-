@@ -1,6 +1,9 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,7 +11,7 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL") // مطلوب لـ Vercel/Supabase
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -30,19 +33,19 @@ model FitnessProfile {
   id             String   @id @default(cuid())
   userId         String   @unique
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  height         Float    // بالسنتيمتر
-  weight         Float    // بالكيلوجرام
+  height         Float
+  weight         Float
   age            Int
-  gender         String   // male, female
-  activityLevel  String   // sedentary, light, moderate, active, very_active
-  goal           String   // cutting, bulking, maintenance
-  proteinBudget  String?  // low, medium, high - هل يقدر يجيب بروتين
-  bmr            Float?   // Basal Metabolic Rate
-  tdee           Float?   // Total Daily Energy Expenditure
-  targetCalories Float?   // السعرات المستهدفة
-  protein        Float?   // جرامات البروتين
-  carbs          Float?   // جرامات الكربوهيدرات
-  fat            Float?   // جرامات الدهون
+  gender         String
+  activityLevel  String
+  goal           String
+  proteinBudget  String?  @default("medium")
+  bmr            Float?
+  tdee           Float?
+  targetCalories Float?
+  protein        Float?
+  carbs          Float?
+  fat            Float?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -50,17 +53,17 @@ model FitnessProfile {
 }
 
 model PaymentRequest {
-  id             String    @id @default(cuid())
-  userId         String    @unique
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount         Float     // المبلغ
-  receiptImage   String    // صورة الإيصال
-  status         String    @default("pending") // pending, approved, rejected
-  rejectionReason String?  // سبب الرفض
-  pdfFile        String?   // ملف PDF للبرنامج
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  reviewedAt     DateTime?
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount          Float
+  receiptImage    String
+  status          String    @default("pending")
+  rejectionReason String?
+  pdfFile         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  reviewedAt      DateTime?
 
   @@map("payment_requests")
 }
@@ -68,7 +71,7 @@ model PaymentRequest {
 model Admin {
   id        String   @id @default(cuid())
   username  String   @unique
-  password  String   // سيتم تخزينها مشفرة
+  password  String
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

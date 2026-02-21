@@ -23,15 +23,14 @@
 
 - **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes
-- **Database**: PostgreSQL (Neon) with Prisma ORM
+- **Database**: PostgreSQL (Neon/Supabase) with Prisma ORM
 - **UI Components**: shadcn/ui
 - **State Management**: Zustand
 
 ## 📋 المتطلبات
 
 - Node.js 18+
-- Bun (أو npm/yarn)
-- PostgreSQL database (Neon, Supabase, etc.)
+- PostgreSQL database (Neon, Supabase, Railway, etc.)
 
 ## 🔧 التثبيت
 
@@ -41,16 +40,21 @@ git clone https://github.com/YOUR_USERNAME/technofit.git
 cd technofit
 
 # تثبيت المكتبات
-bun install
+npm install
 
-# إعداد قاعدة البيانات
-bun run db:push
+# إعداد متغيرات البيئة
+cp .env.example .env
+# ثم عدّل .env بمعلومات قاعدة البيانات الخاصة بك
 
-# إنشاء حساب الأدمن الافتراضي
-bun run db:seed
+# إنشاء جداول قاعدة البيانات
+npx prisma db push
+
+# إنشاء حساب الأدمن
+npx prisma db seed
+# أو افتح /api/fix-admin في المتصفح
 
 # تشغيل الخادم
-bun run dev
+npm run dev
 ```
 
 ## 🔐 متغيرات البيئة
@@ -58,29 +62,43 @@ bun run dev
 أنشئ ملف `.env`:
 
 ```env
-# PostgreSQL connection (Neon)
-DATABASE_URL="postgresql://user:password@ep-xxx.region.aws.neon.tech/technofit?sslmode=require"
-DIRECT_URL="postgresql://user:password@ep-xxx.region.aws.neon.tech/technofit?sslmode=require"
+# PostgreSQL connection (required)
+DATABASE_URL="postgresql://user:password@host:5432/database?sslmode=require"
+DIRECT_URL="postgresql://user:password@host:5432/database?sslmode=require"
 ```
 
-## 👨‍💼 بيانات الأدمن الافتراضية
+### مثال لـ Neon Database:
 
-بعد تشغيل `bun run db:seed`:
-
-- **Username**: `admin`
-- **Password**: `admin123`
-
-> ⚠️ غيّر كلمة المرور فوراً بعد أول تسجيل دخول في بيئة الإنتاج!
-
-## 🌱 API للإنشاء الأولي
-
-إذا لم تعمل seed script، يمكنك استدعاء API مباشرة:
-
-```
-POST /api/seed-admin
+```env
+DATABASE_URL="postgresql://username:password@ep-xxx.us-east-2.aws.neon.tech/technofit?sslmode=require"
+DIRECT_URL="postgresql://username:password@ep-xxx.us-east-2.aws.neon.tech/technofit?sslmode=require"
 ```
 
-هذا سينشئ حساب الأدمن الافتراضي.
+## 👨‍💼 بيانات الأدمن
+
+بعد التثبيت، استخدم هذه البيانات لتسجيل الدخول:
+
+| Username | Password |
+|----------|----------|
+| `admin` | `admin123` |
+
+> ⚠️ غيّر كلمة المرور فوراً في بيئة الإنتاج!
+
+## 🔗 API Endpoints المهمة
+
+| Endpoint | الوصف |
+|----------|-------|
+| `GET /api/fix-admin` | إنشاء حساب الأدمن تلقائياً |
+| `GET /api/db-status` | فحص حالة قاعدة البيانات |
+
+## 🚀 النشر على Vercel
+
+1. اربط المشروع بـ Vercel
+2. أضف متغيرات البيئة:
+   - `DATABASE_URL`
+   - `DIRECT_URL`
+3. سيتم تشغيل `prisma db push` تلقائياً أثناء البناء
+4. بعد النشر، افتح `/api/fix-admin` لإنشاء الأدمن
 
 ## 📱 التواصل
 

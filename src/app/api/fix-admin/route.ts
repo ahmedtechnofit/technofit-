@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
 
-// Simple admin creation - uses upsert to create or update
+// Simple admin creation - no complex validation
+// Just creates admin/admin123 if it doesn't exist
+
+const prisma = new PrismaClient();
+
 export async function GET() {
   try {
-    const admin = await db.admin.upsert({
+    // Try to create admin directly
+    const admin = await prisma.admin.upsert({
       where: { username: 'admin' },
       update: {
         password: 'admin123',
@@ -31,19 +36,32 @@ export async function GET() {
       },
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // Get detailed error
+    let errorMessage = 'Unknown error';
+    let errorHint = '';
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      if (errorMessage.includes('relation') || errorMessage.includes('does not exist')) {
+        errorHint = 'Database tables not created. Prisma db push needed.';
+      } else if (errorMessage.includes('connect')) {
+        errorHint = 'Cannot connect to database. Check DATABASE_URL.';
+      }
+    }
 
     return NextResponse.json({
       success: false,
       error: errorMessage,
-      hint: errorMessage.includes('relation') 
-        ? 'Database tables not created. Run: npx prisma db push'
-        : 'Check DATABASE_URL environment variable',
+      hint: errorHint,
       envCheck: {
         hasDatabaseUrl: !!process.env.DATABASE_URL,
         hasDirectUrl: !!process.env.DIRECT_URL,
+        nodeEnv: process.env.NODE_ENV,
       },
     }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
 

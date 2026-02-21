@@ -35,14 +35,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Database
+# Database files (SQLite - not used anymore)
 db/*.db
 db/*.db-journal
+*.db
+*.sqlite
+*.sqlite3
 
-# Uploads - exclude user uploaded files
+# Uploads
 public/uploads/
+uploads/
 
-# Skills folder (not needed for deployment)
+# Skills folder
 skills/
 
 # IDE

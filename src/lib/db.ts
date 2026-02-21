@@ -1,37 +1,21 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
 
+// Global variable to prevent multiple Prisma instances in development
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
+  prisma: PrismaClient | undefined;
+};
 
+// Create Prisma client with PostgreSQL
 function createPrismaClient() {
   return new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
-  })
+    log: ['error'],
+  });
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient()
+// Use existing client or create new one
+export const db = globalForPrisma.prisma ?? createPrismaClient();
 
+// In development, save to global to prevent hot reload issues
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = db
-}
-
-// Helper function to test database connection
-export async function testDatabaseConnection(): Promise<{ success: boolean; error?: string }> {
-  try {
-    await db.$connect()
-    await db.$queryRaw`SELECT 1`
-    return { success: true }
-  } catch (error) {
-    console.error('Database connection error:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    }
-  }
+  globalForPrisma.prisma = db;
 }

@@ -1261,23 +1261,30 @@ function MyPlanPage() {
 function AdminLogin() {
   const setAdminToken = useAppStore((state) => state.setAdminToken);
   const setCurrentStep = useAppStore((state) => state.setCurrentStep);
+  const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!username || !password) {
+      toast.error('يرجى إدخال اسم المستخدم وكلمة المرور');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('كلمة المرور غير صحيحة');
+        throw new Error(data.error || 'اسم المستخدم أو كلمة المرور غير صحيحة');
       }
 
-      const data = await response.json();
       setAdminToken(data.token);
       setCurrentStep('admin');
       toast.success('تم تسجيل الدخول بنجاح');
@@ -1294,9 +1301,20 @@ function AdminLogin() {
         <CardHeader className="text-center">
           <Shield className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
           <CardTitle className="text-2xl text-white">لوحة التحكم</CardTitle>
-          <CardDescription className="text-slate-400">أدخل كلمة المرور للدخول</CardDescription>
+          <CardDescription className="text-slate-400">أدخل بيانات الدخول</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="username">اسم المستخدم</Label>
+            <Input
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="admin"
+              className="bg-slate-700 border-slate-600 text-white"
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="password">كلمة المرور</Label>
             <Input

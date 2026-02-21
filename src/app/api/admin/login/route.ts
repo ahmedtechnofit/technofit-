@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { randomBytes } from 'crypto';
 
-// Admin password (in production, this should be in environment variables)
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ahmed123';
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { password } = body;
+    const { username, password } = body;
 
-    if (password !== ADMIN_PASSWORD) {
+    // Check database for admin
+    const admin = await db.admin.findUnique({
+      where: { username: username || 'admin' },
+    });
+
+    if (!admin || admin.password !== password) {
       return NextResponse.json(
-        { error: 'كلمة المرور غير صحيحة' },
+        { error: 'اسم المستخدم أو كلمة المرور غير صحيحة' },
         { status: 401 }
       );
     }
@@ -26,11 +28,19 @@ export async function POST(request: NextRequest) {
     await db.adminSession.create({
       data: {
         token,
+        adminId: admin.id,
         expiresAt,
       },
     });
 
-    return NextResponse.json({ token });
+    return NextResponse.json({ 
+      token,
+      admin: {
+        id: admin.id,
+        username: admin.username,
+        name: admin.name,
+      }
+    });
   } catch (error) {
     console.error('Error logging in:', error);
     return NextResponse.json(

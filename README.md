@@ -21,9 +21,9 @@
 
 ## 🛠️ التقنيات المستخدمة
 
-- **Frontend**: Next.js 15, React, TypeScript, Tailwind CSS
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes
-- **Database**: SQLite with Prisma ORM
+- **Database**: PostgreSQL (Neon) with Prisma ORM
 - **UI Components**: shadcn/ui
 - **State Management**: Zustand
 
@@ -31,6 +31,7 @@
 
 - Node.js 18+
 - Bun (أو npm/yarn)
+- PostgreSQL database (Neon, Supabase, etc.)
 
 ## 🔧 التثبيت
 
@@ -45,6 +46,9 @@ bun install
 # إعداد قاعدة البيانات
 bun run db:push
 
+# إنشاء حساب الأدمن الافتراضي
+bun run db:seed
+
 # تشغيل الخادم
 bun run dev
 ```
@@ -54,9 +58,29 @@ bun run dev
 أنشئ ملف `.env`:
 
 ```env
-DATABASE_URL="file:./db/custom.db"
-ADMIN_PASSWORD="your-admin-password"
+# PostgreSQL connection (Neon)
+DATABASE_URL="postgresql://user:password@ep-xxx.region.aws.neon.tech/technofit?sslmode=require"
+DIRECT_URL="postgresql://user:password@ep-xxx.region.aws.neon.tech/technofit?sslmode=require"
 ```
+
+## 👨‍💼 بيانات الأدمن الافتراضية
+
+بعد تشغيل `bun run db:seed`:
+
+- **Username**: `admin`
+- **Password**: `admin123`
+
+> ⚠️ غيّر كلمة المرور فوراً بعد أول تسجيل دخول في بيئة الإنتاج!
+
+## 🌱 API للإنشاء الأولي
+
+إذا لم تعمل seed script، يمكنك استدعاء API مباشرة:
+
+```
+POST /api/seed-admin
+```
+
+هذا سينشئ حساب الأدمن الافتراضي.
 
 ## 📱 التواصل
 

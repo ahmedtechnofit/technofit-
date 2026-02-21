@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
 
-// Simple admin creation - uses upsert to create or update
+// Ultra simple admin creation - no complex validation
+// Just creates admin/admin123
+
 export async function GET() {
+  const prisma = new PrismaClient();
+  
   try {
-    const admin = await db.admin.upsert({
-      where: { username: 'admin' },
-      update: {
-        password: 'admin123',
-        name: 'Admin',
-      },
-      create: {
+    // Direct create - will fail if exists, that's ok
+    await prisma.admin.create({
+      data: {
         username: 'admin',
         password: 'admin123',
         name: 'Admin',
@@ -19,31 +19,27 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      message: 'Admin created/updated successfully!',
-      credentials: {
-        username: 'admin',
-        password: 'admin123',
-      },
-      data: {
-        id: admin.id,
-        username: admin.username,
-        createdAt: admin.createdAt,
-      },
+      message: 'Admin created! Username: admin, Password: admin123',
     });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
+  } catch (error: unknown) {
+    // If admin exists, that's fine
+    const msg = error instanceof Error ? error.message : '';
+    
+    if (msg.includes('Unique constraint') || msg.includes('already exists')) {
+      return NextResponse.json({
+        success: true,
+        message: 'Admin already exists! Username: admin, Password: admin123',
+      });
+    }
+    
+    // Other error - show details
     return NextResponse.json({
       success: false,
-      error: errorMessage,
-      hint: errorMessage.includes('relation') 
-        ? 'Database tables not created. Run: npx prisma db push'
-        : 'Check DATABASE_URL environment variable',
-      envCheck: {
-        hasDatabaseUrl: !!process.env.DATABASE_URL,
-        hasDirectUrl: !!process.env.DIRECT_URL,
-      },
+      error: msg || 'Unknown error',
+      hint: 'Make sure DATABASE_URL is set correctly in Vercel',
     }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
 

@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-// Simple admin creation - no complex validation
-// Just creates admin/admin123 if it doesn't exist
-
-const prisma = new PrismaClient();
+// Ultra simple admin creation - no complex validation
+// Just creates admin/admin123
 
 export async function GET() {
+  const prisma = new PrismaClient();
+  
   try {
-    // Try to create admin directly
-    const admin = await prisma.admin.upsert({
-      where: { username: 'admin' },
-      update: {
-        password: 'admin123',
-        name: 'Admin',
-      },
-      create: {
+    // Direct create - will fail if exists, that's ok
+    await prisma.admin.create({
+      data: {
         username: 'admin',
         password: 'admin123',
         name: 'Admin',
@@ -24,41 +19,24 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      message: 'Admin created/updated successfully!',
-      credentials: {
-        username: 'admin',
-        password: 'admin123',
-      },
-      data: {
-        id: admin.id,
-        username: admin.username,
-        createdAt: admin.createdAt,
-      },
+      message: 'Admin created! Username: admin, Password: admin123',
     });
-  } catch (error) {
-    // Get detailed error
-    let errorMessage = 'Unknown error';
-    let errorHint = '';
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      
-      if (errorMessage.includes('relation') || errorMessage.includes('does not exist')) {
-        errorHint = 'Database tables not created. Prisma db push needed.';
-      } else if (errorMessage.includes('connect')) {
-        errorHint = 'Cannot connect to database. Check DATABASE_URL.';
-      }
+  } catch (error: unknown) {
+    // If admin exists, that's fine
+    const msg = error instanceof Error ? error.message : '';
+    
+    if (msg.includes('Unique constraint') || msg.includes('already exists')) {
+      return NextResponse.json({
+        success: true,
+        message: 'Admin already exists! Username: admin, Password: admin123',
+      });
     }
-
+    
+    // Other error - show details
     return NextResponse.json({
       success: false,
-      error: errorMessage,
-      hint: errorHint,
-      envCheck: {
-        hasDatabaseUrl: !!process.env.DATABASE_URL,
-        hasDirectUrl: !!process.env.DIRECT_URL,
-        nodeEnv: process.env.NODE_ENV,
-      },
+      error: msg || 'Unknown error',
+      hint: 'Make sure DATABASE_URL is set correctly in Vercel',
     }, { status: 500 });
   } finally {
     await prisma.$disconnect();

@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String           @id @default(cuid())
+  name          String
+  email         String           @unique
+  phone         String?
+  location      String?
+  password      String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  fitnessProfile FitnessProfile?
+  paymentRequest PaymentRequest?
+}
+
+model FitnessProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  height          Float    // بالسنتيمتر
+  weight          Float    // بالكيلوجرام
+  age             Int
+  gender          String   // male, female
+  activityLevel   String   // sedentary, light, moderate, active, very_active
+  goal            String   // cutting, bulking, maintenance
+  proteinBudget   String?  // low, medium, high - هل يقدر يجيب بروتين
+  bmr             Float?   // Basal Metabolic Rate
+  tdee            Float?   // Total Daily Energy Expenditure
+  targetCalories  Float?   // السعرات المستهدفة
+  protein         Float?   // جرامات البروتين
+  carbs           Float?   // جرامات الكربوهيدرات
+  fat             Float?   // جرامات الدهون
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model PaymentRequest {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount          Float     // المبلغ
+  receiptImage    String    // صورة الإيصال
+  status          String    @default("pending") // pending, approved, rejected
+  rejectionReason String?   // سبب الرفض
+  pdfFile         String?   // ملف PDF للبرنامج
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  reviewedAt      DateTime?
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}

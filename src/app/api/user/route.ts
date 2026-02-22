@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { name, email, phone, location, height, weight, age, gender, activityLevel, goal, proteinBudget } = body;
 
-    // Validate required fields
     if (!name || !email || !height || !weight || !age) {
-      return NextResponse.json(
-        { error: 'يرجى ملء جميع الحقول المطلوبة' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'بيانات ناقصة' }, { status: 400 });
     }
 
-    // Upsert user
-    const user = await db.user.upsert({
+    const user = await prisma.user.upsert({
       where: { email },
       update: {
         name,
@@ -64,29 +61,23 @@ export async function POST(request: NextRequest) {
       include: { fitnessProfile: true },
     });
 
-    return NextResponse.json({ userId: user.id, user, success: true });
+    return NextResponse.json({ userId: user.id, success: true });
   } catch (error) {
     console.error('Error in user API:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-    return NextResponse.json(
-      { 
-        error: 'حدث خطأ في حفظ البيانات',
-        details: errorMessage 
-      },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'حدث خطأ', details: msg }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
 export async function GET() {
   try {
-    const count = await db.user.count();
-    return NextResponse.json({ success: true, userCount: count });
+    const count = await prisma.user.count();
+    return NextResponse.json({ success: true, count });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }

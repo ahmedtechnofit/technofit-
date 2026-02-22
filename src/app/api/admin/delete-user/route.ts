@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 async function validateToken(token: string) {
-  const session = await db.adminSession.findUnique({
+  const session = await prisma.adminSession.findUnique({
     where: { token },
   });
-
-  if (!session || session.expiresAt < new Date()) {
-    return false;
-  }
-
-  return true;
+  return !!session && session.expiresAt > new Date();
 }
 
 export async function POST(request: NextRequest) {
@@ -19,31 +16,20 @@ export async function POST(request: NextRequest) {
     const { token, userId } = body;
 
     if (!token || !(await validateToken(token))) {
-      return NextResponse.json(
-        { error: 'غير مصرح' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
     }
 
     if (!userId) {
-      return NextResponse.json(
-        { error: 'معرف المستخدم مطلوب' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'معرف المستخدم مطلوب' }, { status: 400 });
     }
 
-    // Delete user and all related records
-    await db.user.delete({
-      where: { id: userId },
-    });
-
+    await prisma.user.delete({ where: { id: userId } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting user:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في حذف المستخدم' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -53,23 +39,18 @@ export async function DELETE(request: NextRequest) {
     const token = searchParams.get('token');
 
     if (!token || !(await validateToken(token))) {
-      return NextResponse.json(
-        { error: 'غير مصرح' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
     }
 
-    // Delete all users and related data
-    await db.paymentRequest.deleteMany();
-    await db.fitnessProfile.deleteMany();
-    await db.user.deleteMany();
+    await prisma.paymentRequest.deleteMany();
+    await prisma.fitnessProfile.deleteMany();
+    await prisma.user.deleteMany();
 
     return NextResponse.json({ success: true, message: 'تم حذف جميع المشتركين' });
   } catch (error) {
     console.error('Error deleting all users:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في حذف المشتركين' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }

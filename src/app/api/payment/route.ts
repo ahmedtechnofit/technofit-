@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
+import { PrismaClient } from '@prisma/client';
 
+const prisma = new PrismaClient();
+
+// POST - Create/Update payment request with receipt
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -18,62 +18,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'receipts');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
-
-    // Save receipt image with proper extension
-    const ext = receipt.name.split('.').pop() || 'jpg';
-    const fileName = `${userId}_${Date.now()}.${ext}`;
-    const filePath = path.join(uploadsDir, fileName);
-    
+    // Convert receipt to base64 for storage (Vercel serverless compatible)
     const bytes = await receipt.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
-
-    // Use API URL for serving the image
-    const receiptUrl = `/api/serve-image?file=${fileName}`;
+    const base64Image = `data:${receipt.type || 'image/jpeg'};base64,${buffer.toString('base64')}`;
 
     // Create or update payment request
-    const existingPayment = await db.paymentRequest.findUnique({
+    const existingPayment = await prisma.paymentRequest.findUnique({
       where: { userId },
     });
 
     let payment;
     if (existingPayment) {
-      payment = await db.paymentRequest.update({
+      payment = await prisma.paymentRequest.update({
         where: { userId },
         data: {
           amount,
-          receiptImage: receiptUrl,
+          receiptImage: base64Image,
           status: 'pending',
           rejectionReason: null,
           pdfFile: null,
         },
       });
     } else {
-      payment = await db.paymentRequest.create({
+      payment = await prisma.paymentRequest.create({
         data: {
           userId,
           amount,
-          receiptImage: receiptUrl,
+          receiptImage: base64Image,
           status: 'pending',
         },
       });
     }
 
-    return NextResponse.json({ paymentId: payment.id, payment });
+    return NextResponse.json({ 
+      success: true,
+      paymentId: payment.id 
+    });
   } catch (error) {
     console.error('Error creating payment request:', error);
+    const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'حدث خطأ في إرسال الطلب' },
+      { error: 'حدث خطأ في إرسال الطلب', details: msg },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
+// GET - Fetch payment status for user
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -86,7 +80,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const payment = await db.paymentRequest.findUnique({
+    const payment = await prisma.paymentRequest.findUnique({
       where: { userId },
     });
 
@@ -94,26 +88,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(null);
     }
 
-    // Convert old image URLs to new API format
-    let receiptImage = payment.receiptImage;
-    if (receiptImage && receiptImage.startsWith('/uploads/receipts/')) {
-      const fileName = receiptImage.split('/').pop();
-      receiptImage = `/api/serve-image?file=${fileName}`;
-    }
-
-    // Convert old PDF URLs to new API format
-    let pdfUrl = payment.pdfFile;
-    if (pdfUrl && pdfUrl.startsWith('/uploads/programs/')) {
-      const fileName = pdfUrl.split('/').pop();
-      pdfUrl = `/api/serve-pdf?file=${fileName}`;
-    }
-
     return NextResponse.json({
       id: payment.id,
       status: payment.status,
       rejectionReason: payment.rejectionReason,
-      pdfUrl: pdfUrl,
-      receiptImage: receiptImage,
+      pdfUrl: payment.pdfFile,
+      receiptImage: payment.receiptImage,
     });
   } catch (error) {
     console.error('Error fetching payment status:', error);
@@ -121,5 +101,7 @@ export async function GET(request: NextRequest) {
       { error: 'حدث خطأ في جلب حالة الطلب' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

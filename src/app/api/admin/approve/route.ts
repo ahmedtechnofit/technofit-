@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 async function validateToken(token: string) {
-  const session = await db.adminSession.findUnique({
+  const session = await prisma.adminSession.findUnique({
     where: { token },
   });
 
@@ -22,12 +21,6 @@ export async function POST(request: NextRequest) {
     const token = formData.get('token') as string;
     const paymentId = formData.get('paymentId') as string;
     const pdf = formData.get('pdf') as File;
-
-    console.log('Approve request:', { 
-      token: token ? 'exists' : 'missing', 
-      paymentId, 
-      pdf: pdf ? { name: pdf.name, type: pdf.type, size: pdf.size } : 'missing' 
-    });
 
     if (!token || !(await validateToken(token))) {
       return NextResponse.json(
@@ -50,53 +43,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create uploads directory
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'programs');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
-
     // Read file content
     const bytes = await pdf.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
     // Validate PDF magic number (first 4 bytes should be %PDF)
     const header = buffer.slice(0, 4).toString('ascii');
-    console.log('File header:', header);
     
     if (header !== '%PDF') {
       return NextResponse.json(
-        { error: `الملف المرفوع ليس ملف PDF صالح. الملف يجب أن يبدأ بـ %PDF ولكن يبدأ بـ "${header}". يرجى رفع ملف PDF حقيقي وليس صورة.` },
+        { error: 'الملف المرفوع ليس ملف PDF صالح. يرجى رفع ملف PDF حقيقي.' },
         { status: 400 }
       );
     }
 
-    // Save PDF file with proper extension
-    const fileName = `${paymentId}_${Date.now()}.pdf`;
-    const filePath = path.join(uploadsDir, fileName);
-    await writeFile(filePath, buffer);
-
-    // Store the URL that serves the file properly
-    const pdfUrl = `/api/serve-pdf?file=${fileName}`;
+    // Convert to base64 for storage (Vercel serverless compatible)
+    const base64Pdf = `data:application/pdf;base64,${buffer.toString('base64')}`;
 
     // Update payment request
-    const payment = await db.paymentRequest.update({
+    const payment = await prisma.paymentRequest.update({
       where: { id: paymentId },
       data: {
         status: 'approved',
-        pdfFile: pdfUrl,
+        pdfFile: base64Pdf,
         reviewedAt: new Date(),
       },
     });
 
-    console.log('Payment approved successfully:', payment.id);
-
-    return NextResponse.json({ success: true, payment, pdfUrl });
+    return NextResponse.json({ success: true, paymentId: payment.id });
   } catch (error) {
     console.error('Error approving payment:', error);
+    const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'حدث خطأ في قبول الطلب: ' + (error instanceof Error ? error.message : 'خطأ غير معروف') },
+      { error: 'حدث خطأ في قبول الطلب', details: msg },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

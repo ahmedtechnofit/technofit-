@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
 import { randomBytes } from 'crypto';
+
+const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { username, password } = body;
 
-    // Check database for admin
-    const admin = await db.admin.findUnique({
+    // Find admin in database
+    const admin = await prisma.admin.findUnique({
       where: { username: username || 'admin' },
     });
 
@@ -22,10 +24,10 @@ export async function POST(request: NextRequest) {
     // Generate token
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // Token expires in 24 hours
+    expiresAt.setHours(expiresAt.getHours() + 24);
 
     // Save session
-    await db.adminSession.create({
+    await prisma.adminSession.create({
       data: {
         token,
         adminId: admin.id,
@@ -33,19 +35,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       token,
       admin: {
         id: admin.id,
         username: admin.username,
         name: admin.name,
-      }
+      },
     });
   } catch (error) {
     console.error('Error logging in:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في تسجيل الدخول' },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'حدث خطأ', details: msg }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }

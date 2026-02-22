@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 async function validateToken(token: string) {
-  const session = await db.adminSession.findUnique({
+  const session = await prisma.adminSession.findUnique({
     where: { token },
   });
-
-  if (!session || session.expiresAt < new Date()) {
-    return false;
-  }
-
-  return true;
+  return !!session && session.expiresAt > new Date();
 }
 
 export async function POST(request: NextRequest) {
@@ -19,21 +16,14 @@ export async function POST(request: NextRequest) {
     const { token, paymentId, reason } = body;
 
     if (!token || !(await validateToken(token))) {
-      return NextResponse.json(
-        { error: 'غير مصرح' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
     }
 
     if (!paymentId || !reason) {
-      return NextResponse.json(
-        { error: 'جميع البيانات مطلوبة' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'جميع البيانات مطلوبة' }, { status: 400 });
     }
 
-    // Update payment request
-    const payment = await db.paymentRequest.update({
+    await prisma.paymentRequest.update({
       where: { id: paymentId },
       data: {
         status: 'rejected',
@@ -42,12 +32,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, payment });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error rejecting payment:', error);
-    return NextResponse.json(
-      { error: 'حدث خطأ في رفض الطلب' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }

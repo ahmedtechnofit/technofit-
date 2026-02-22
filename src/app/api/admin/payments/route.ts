@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 async function validateToken(token: string) {
-  const session = await db.adminSession.findUnique({
+  const session = await prisma.adminSession.findUnique({
     where: { token },
   });
 
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const payments = await db.paymentRequest.findMany({
+    const payments = await prisma.paymentRequest.findMany({
       include: {
         user: {
           select: {
@@ -58,33 +60,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Convert old URLs to new API format
-    const processedPayments = payments.map(payment => {
-      let receiptImage = payment.receiptImage;
-      if (receiptImage && receiptImage.startsWith('/uploads/receipts/')) {
-        const fileName = receiptImage.split('/').pop();
-        receiptImage = `/api/serve-image?file=${fileName}`;
-      }
-
-      let pdfFile = payment.pdfFile;
-      if (pdfFile && pdfFile.startsWith('/uploads/programs/')) {
-        const fileName = pdfFile.split('/').pop();
-        pdfFile = `/api/serve-pdf?file=${fileName}`;
-      }
-
-      return {
-        ...payment,
-        receiptImage,
-        pdfFile,
-      };
-    });
-
-    return NextResponse.json(processedPayments);
+    return NextResponse.json(payments);
   } catch (error) {
     console.error('Error fetching payments:', error);
+    const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'حدث خطأ في جلب الطلبات' },
+      { error: 'حدث خطأ في جلب الطلبات', details: msg },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
